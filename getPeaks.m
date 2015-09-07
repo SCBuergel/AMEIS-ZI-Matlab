@@ -1,7 +1,18 @@
-function [peakData] = getPeaks(dataIn, indices, magPhaseString, freqIndex, threshold, vOutTimesRfb)
+function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
+    freqIndex, threshold, vOutTimesRfb, smoothLengthS, multiPeak)
+
+    narginchk(6,8);
+
+    if nargin == 1 % assume we do not want to smooth and detect only one peak per chamber
+        smoothLengthS = 0;
+        multiPeak = 0;
+    elseif nargin == 2 % assume we want to detect only one peak per chamber
+        multiPeak = 0;
+    end
 
 % prepare some helper variables
     samplingIntervalS = dataIn.timestamp(2) - dataIn.timestamp(1);
+    smoothLengthSamples = ceil(smoothLengthS / samplingIntervalS);
 %     minPeakIntervalSamples = ceil(minPeakIntervalS / samplingIntervalS) + 1;
     
     numChambers = size(indices.chamberIndex,1);
@@ -73,6 +84,12 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, freqIndex, thres
         else
             dataThresh = data > threshold;
             findMaxima = true;
+        end
+        
+        % get AC component of data if requested
+        % todo: we should also do DC smoothing / filtering
+        if (smoothLengthSamples > 2)
+            data = data - smooth(data, smoothLengthSamples);
         end
 
         % find extremum, only treat one peak per chamber and iteration

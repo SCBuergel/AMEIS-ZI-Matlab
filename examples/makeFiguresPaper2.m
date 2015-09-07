@@ -1,9 +1,10 @@
+addpath('..\'); % parent path contains all vital functions
 
 %%
 % perform data extraction, warning this takes about 15 minutes, run the
 % extraction only when necessary, then store the output peakData in file or
 % just in memory
-dataDirs = {'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\2015-04-02-18-40-39\', ...
+dataDir = 'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\2015-04-02-18-40-39\', ...
     'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\2015-04-04-14-09-08\'};
 folderTimeOffsetsS = [0 44*3600];
 peakData = processFolders(dataDirs, folderTimeOffsetsS);
