@@ -9,7 +9,7 @@ dataDir = 'C:\Users\sbuergel\Dropbox\AMEIS-bio-paper\data\';
 
 % load data
 samplesPerChunk = 2e5;
-chunkIndex = 30;
+chunkIndex = 10;
 freqs = 1:6;
 dataRaw=loadData(dataDir, ...
     samplesPerChunk, samplesPerChunk * chunkIndex, freqs);
@@ -20,14 +20,16 @@ skipInitialSamples = 3000;
 allIndices = getIndices(dataRaw, skipInitialSamples);
 threshold = 1e-5;
 AcSmoothLengthS = 2;
-DcSmoothLengthS = 0.1;
-multiPeak = 0;
-vOutTimesRfb = 200;
+DcSmoothLengthS = 0.05;
+multiPeak = 1;
 debugOn = 1;
-peakData = getPeaks(dataRaw, allIndices, 'mag', 5, threshold, vOutTimesRfb,...
-    AcSmoothLengthS, DcSmoothLengthS, multiPeak, debugOn);
+minPeakDistS = 0.5;
+peakData = getPeaks(dataRaw, allIndices, 'mag', 5, threshold, ...
+    AcSmoothLengthS, DcSmoothLengthS, multiPeak, minPeakDistS, debugOn);
 
-
+% todo: 
+% package in loop processing entire sequence
+% check if single peak detection still works
 
 %%
 figure(1);

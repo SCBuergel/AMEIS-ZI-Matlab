@@ -6,7 +6,6 @@ function peakData = processFolders(dataFolders, folderTimeOffsetsS)
     threshold = -2e-5;        % peaks below threshold are ignored
     peakDetectionFreqIndex = 1; % frequency index to be used for peak extraction
     freqs = 5;                % frequencies to be imported from ziBin files
-    vOutTimesRfb = 20;        % output voltage times feedback resistor in the transimpedance amplifier, used for calculating the impedance. E.g.: Vout = 200mV, Rfb = 100Ohm -> vOutTimesRfb = 20
     skipInitialSamples = 500; % this many samples are skipped after activating a new chamber (might be noisy due to digital tilt signal, bubbles, ...
     
     narginchk(1,2);
@@ -56,11 +55,11 @@ function peakData = processFolders(dataFolders, folderTimeOffsetsS)
 
             % 4. extract peak and baseline data
             if (isempty(peakData))
-                peakData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold, vOutTimesRfb);
+                peakData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold);
                 peakData.timestamp = peakData.timestamp + folderTimeOffsetsS(folder);
                 peakData.f = dataRaw.f;
             else
-                tmpData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold, vOutTimesRfb);
+                tmpData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold);
                 peakData.blLeft = [peakData.blLeft; tmpData.blLeft];
                 peakData.blRight = [peakData.blRight; tmpData.blRight];
                 peakData.P2Bl = [peakData.P2Bl; tmpData.P2Bl];
