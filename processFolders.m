@@ -1,4 +1,6 @@
 function peakData = processFolders(dataFolders, folderTimeOffsetsS)
+% PROCESSFOLDERS is extracting peaks of all files in the given folders in a
+% chunk-wise fashion and returns the processed summarized peak data
 
     samplesPerChunk = 1e6;    % increasing loads more samples in one iteration
     threshold = -2e-5;        % peaks below threshold are ignored
@@ -7,6 +9,8 @@ function peakData = processFolders(dataFolders, folderTimeOffsetsS)
     vOutTimesRfb = 20;        % output voltage times feedback resistor in the transimpedance amplifier, used for calculating the impedance. E.g.: Vout = 200mV, Rfb = 100Ohm -> vOutTimesRfb = 20
     skipInitialSamples = 500; % this many samples are skipped after activating a new chamber (might be noisy due to digital tilt signal, bubbles, ...
     
+    narginchk(1,2);
+
     if (~iscell(dataFolders))
         % if we pass just one folder, wrap it into a cell array to make it
         % compatible with multi-folder processing
