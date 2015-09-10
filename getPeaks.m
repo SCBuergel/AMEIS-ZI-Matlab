@@ -75,22 +75,22 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
     numFreqs = size(dataIn.mag,2);
     
     % create structure with peak data which we return
-    % three columns are for storing (1) signal magnitude, (2) phase, (3)
-    % real signal component, (4) imaginary signal component in one matrix
     peakData.chamberIndex = zeros(numChambers, 1);
     peakData.iterationOfChamber = zeros(numChambers, 1);
     peakData.startTimestampChamberS = zeros(numChambers, 1);
     peakData.durationChamberS = zeros(numChambers, 1);
+    peakData.baseline = zeros(4, numChambers, numFreqs);
     if (multiPeak == 0)
         peakData.multiPeak = 0;
+        % four columns are for storing (1) signal magnitude, (2) phase, (3)
+        % real signal component, (4) imaginary signal component in one matrix
         peakData.P2Bl = zeros(4, numChambers, numFreqs);
-        peakData.baseline = zeros(4, numChambers, numFreqs);
         peakData.timestampPeak = zeros(numChambers, 1);
     else
         peakData.multiPeak = 1;
         peakData.P2Bl = cell(4, numChambers, numFreqs);
         %peakData.peakPos = cell(numChambers, 1);
-        peakData.peakTimestamp = cell(numChambers, 1);
+        peakData.timestampPeak = cell(numChambers, 1);
         peakData.peakCount = zeros(numChambers,1);
         peakData.meanInterval = zeros(numChambers,1);
         peakData.stdInterval = zeros(numChambers,1);
@@ -209,8 +209,8 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
         end
             
         % store time information of chamber
-        peakData.startTimestampChamberS = dataIn.timestamp(iStart);
-        peakData.durationChamberS = dataIn.timestamp(iEnd) - dataIn.timestamp(iStart);
+        peakData.startTimestampChamberS(i) = dataIn.timestamp(iStart);
+        peakData.durationChamberS(i) = dataIn.timestamp(iEnd) - dataIn.timestamp(iStart);
 
         % for debugging puposes show filtered data and stop execution after
         % each chamber (execution is advanced after pressing any key in
@@ -308,7 +308,7 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
                     [tmp, peakPos] = min(dataForPeakDetection(startPeaks(p):endPeaks(p)));
                 end
                 peakPos = peakPos + startPeaks(p);
-                peakData.peakTimestamp{i}(p) = dataIn.timestamp(peakPos) + dataIn.timestamp(iStart) - dataIn.timestamp(1);
+                peakData.timestampPeak{i}(p) = dataIn.timestamp(peakPos) + dataIn.timestamp(iStart) - dataIn.timestamp(1);
                 %dataIn.timestamp(iStart:iEnd)
                 
                 % find peak-to-baseline values for each frequency, each
@@ -324,14 +324,14 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
                 
                 % if debug is on, overlay peak positions on debug plot
                 if (debugOn ~= 0)
-                    plot(peakData.peakTimestamp{i}(p), peakData.P2Bl{pDetectMode, i, freqIndex}(p), 'x', 'MarkerSize', 20, 'LineWidth', 4);
+                    plot(peakData.timestampPeak{i}(p), peakData.P2Bl{pDetectMode, i, freqIndex}(p), 'x', 'MarkerSize', 20, 'LineWidth', 4);
                 end
             end
     
             % this section is useful for cardiac recordings with periodic beats
             if (numPeaks > 3)
-                peakData.meanInterval(i) = mean(diff(peakData.peakTimestamp{i}));
-                peakData.stdInterval(i) = std(diff(peakData.peakTimestamp{i}));
+                peakData.meanInterval(i) = mean(diff(peakData.timestampPeak{i}));
+                peakData.stdInterval(i) = std(diff(peakData.timestampPeak{i}));
             else
                 peakData.meanInterval(i) = 0;
                 peakData.stdInterval(i) = 0;
