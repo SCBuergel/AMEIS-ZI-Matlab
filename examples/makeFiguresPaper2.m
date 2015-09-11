@@ -1,110 +1,57 @@
+% todo: combine both loadAndProcess functions into one function
+%       instead of passing large number of parameters into those functions
+%       create a structure holding those parameters and then just pass this
+%       object. 
+%       Required parameters in initialize routine of this object are:
+%       folder, threshold, frequency for peak detection
+% todo: make sure that data loading works if we provide no frequencies to
+%       loaded: is the default 1:8 ok if Freq1.ziBin e.g. doesnt exist? 
+
 addpath('..\'); % parent path contains all vital functions
+ah=initAmeis('C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\EIS-sampleData\2015-04-02-14-51-12_m\', -2e-4);
+ah.maxChunks = 2;
+ah.debugOn = 0;
+ah.freqs = 2:7;
+% ah=initAmeis('C:\Users\sbuergel\Dropbox\AMEIS-bio-paper\data\', 1e-5);
+% ah.maxChunks = 2;
+% ah.skipInitialSamples = 3000;
+% ah.peakDetectionFreqIndex = 3;
+% ah.minPeakDistS = 0.5;
+% ah.AcSmoothLengthS = 1;
+% ah.DcSmoothLengthS = 0.1;
 
-dataDir = 'C:\Users\sbuergel\Dropbox\AMEIS-bio-paper\data\';
-skipInitialSamples = 3000;
-threshold = 1e-5;
-AcSmoothLengthS = 1;
-DcSmoothLengthS = 0.1;
-multiPeak = 1;
-debugOn = 0;
-minPeakDistS = 0.5;
-samplesPerChunk = 1e6;
-peakDetectionFreqIndex = 5;
-freqs = 1:8;
+peakData=processFolders(ah);
+%% Figure 4
+% % load and process cardio data
+dataDir = 'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\EIS-sampleData\2015-04-02-14-51-12_m\';
+% peakData = loadAndProcessSingleData(dataDir);
 
-chunkIndex = 0;	% change to skip some iterations in the beginning of the file
-dataRaw = 1;    % should not be empty to get into while loop
-newIndices = [];
-allIndices = [];
-peakData2 = [];
-while(~isempty(dataRaw))
-
-    % TODO: ideally, loadData should know where the last sample in
-    % the previous chunk (incomplete there) started and seek there
-    % 1. load data
-    % load data
-    dataRaw=loadData(dataDir, ...
-        samplesPerChunk, samplesPerChunk * chunkIndex, freqs);
-    
-    ['first timestamp = ', num2str(dataRaw.timestamp(1)/3600), ' h']
-    
-    % if we did not get any data, then probably we are done processing
-    if (isempty(dataRaw))
-        continue;
-    end
-
-    % 2. find indices
-    [allIndices, newIndices] = getIndices(dataRaw, skipInitialSamples, allIndices);
-    if (size(newIndices.startIndex,1) == 0)
-        continue;
-    end
-%             % 3 (optional). plot some selected time domain data
-%             plotDataTimeDomain(dataRaw, 5, 0, inf, 1, 10, 'mag');
-
-    % 4. extract peak and baseline data and append to existing results of
-    % previous chunks
-    if (isempty(peakData2))
-        peakData2 = getPeaks(dataRaw, allIndices, 'mag', peakDetectionFreqIndex, threshold, ...
-            AcSmoothLengthS, DcSmoothLengthS, multiPeak, minPeakDistS, debugOn);
-%         peakData.timestamp = peakData.timestamp + folderTimeOffsetsS(folder);
-        peakData2.f = dataRaw.f;
-    else
-        tmpData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold, ...
-            AcSmoothLengthS, DcSmoothLengthS, multiPeak, minPeakDistS, debugOn);
-        
-        % append peak results to results of previous chunks
-        peakData2.chamberIndex = [peakData2.chamberIndex; tmpData.chamberIndex];
-        peakData2.iterationOfChamber = [peakData2.iterationOfChamber; tmpData.iterationOfChamber];
-%         peakData.startTimestampChamberS = [peakData2.startTimestampChamberS; tmpData.startTimestampChamberS + folderTimeOffsetsS(folder)];
-        peakData2.startTimestampChamberS = [peakData2.startTimestampChamberS; tmpData.startTimestampChamberS];
-        peakData2.durationChamberS = [peakData2.durationChamberS; tmpData.durationChamberS];
-        peakData2.timestampPeak = [peakData2.timestampPeak; tmpData.timestampPeak];
-        peakData2.baseline = [peakData2.baseline, tmpData.baseline];  % right dimension for cat?
-        peakData2.P2Bl = [peakData2.P2Bl, tmpData.P2Bl];
-        if (tmpData.multiPeak ~= 0) % append multi-peak results
-            peakData2.peakCount = [peakData2.peakCount; tmpData.peakCount];
-            peakData2.meanInterval = [peakData2.meanInterval; tmpData.meanInterval];
-            peakData2.stdInterval = [peakData2.stdInterval; tmpData.stdInterval];
-        end
-    end
-
-    % plot some intermediate multi-peak number
-    figure(1);
-    plot(peakData2.chamberIndex, peakData2.peakCount, 'o');
-%     % plot some intermediate p2bl data
-%     figure(1);
-%     subplot(1, 3, 1);
-%     index=find(peakData.chamberIndex==2);
-%     plot(peakData.timestamp(index)./3600, peakData.P2Bl(index, peakDetectionFreqIndex, 1), 'o');
-%     xlabel('Time [h]');
-%     ylabel('\Delta{}V (chamber 2) [V]');
-% 
-%     subplot(1, 3, 2);
-%     plot(peakData.timestamp(index)./3600, peakData.blRight(index, peakDetectionFreqIndex, 1), 'o');
-%     xlabel('Time [h]');
-%     ylabel('V_{baseline} (chamber 2) [V]');
-% 
-%     subplot(1, 3, 3);
-%     index=find(peakData.chamberIndex==2);
-%     plot(peakData.timestamp(index)./3600, peakData.P2Bl(index, peakDetectionFreqIndex, 1) ./ peakData.blRight(index, peakDetectionFreqIndex, 1), 'o');
-%     xlabel('Time [h]');
-%     ylabel('\Delta{}V_{norm} (chamber 2) [V]');
-
-    chunkIndex = chunkIndex + 1
-    if (chunkIndex > 34)
-        break;  % Matlab exception if running for longer, so we quit here...
-    end
-end
+% peakData = loadAndProcessCardioData(dataDir);
 
 %%
-chamber=2;
-i=find(peakData2.chamberIndex == 2);
-figure(2);
-errorbar(peakData2.startTimestampChamberS, peakData2.meanInterval, peakData2.stdInterval,'.');
-
-
-
-
+figure(1);
+x1=subplot(2, 1, 1);
+i2 = find(peakData2.chamberIndex == 2 & peakData2.stdInterval < 0.05 & peakData2.meanInterval > 0);
+errorbar(peakData2.startTimestampChamberS(i2)./3600, 1./peakData2.meanInterval(i2), peakData2.stdInterval(i2), '.', 'Color', 'red');
+% x1=gca();
+hold on;
+i7 = find(peakData2.chamberIndex == 7 & peakData2.stdInterval < 0.1 & peakData2.meanInterval > 0);
+errorbar(peakData2.startTimestampChamberS(i7)./3600, 1./peakData2.meanInterval(i7), peakData2.stdInterval(i7), '.', 'Color', 'blue');
+hold off;
+ylabel('Beating frequency [Hz]');
+xlabel('Time [h]');
+xlim([-0.5 19.5]);
+% figure(2);
+x2=subplot(2, 1, 2);
+plot(peakData2.startTimestampChamberS(i2)./3600, peakData2.baseline(1,i2,3)/1000*1e6, 'o', 'Color', 'red');
+hold on;
+plot(peakData2.startTimestampChamberS(i7)./3600, peakData2.baseline(1,i7,3)/1000*1e6, 'o', 'Color', 'blue');
+hold off;
+% x2=gca();
+ylabel('Current [\mu{}A]');
+xlabel('Time [h]');
+xlim([-0.5 19.5]);
+linkaxes([x1, x2], 'x');
 
 
 %%
@@ -125,9 +72,9 @@ ylabel('Chamber index');
 % for in = 2:15
     in = 2;
     it = 4;
-    i = find(allIndices.chamberIndex == in & allIndices.iterationOfChamber == it);
-    s = allIndices.startIndex(i(1));
-    e = allIndices.endIndex(i(1));
+    i2 = find(allIndices.chamberIndex == in & allIndices.iterationOfChamber == it);
+    s = allIndices.startIndex(i2(1));
+    e = allIndices.endIndex(i2(1));
     figure(2);
     plot(dataRaw.timestamp(s:e), dataRaw.mag(s:e, 5));
     xlabel('Time [s]');

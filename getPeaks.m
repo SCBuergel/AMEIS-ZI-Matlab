@@ -109,20 +109,6 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
         if (indices.chamberIndex(i) == 0)
             continue;
         end
-        
-        %{
-        % TODO: these three if clauses below should not be necessary and
-        % could be removed, indices are anyway wrong
-        if (i > size(peakData.baseline, 1))
-            warning('over');
-        end
-        if (i > size(indices.startIndex,1))
-            warning('over');
-        end
-        if (indices.startIndex(i) > size(dataIn.mag, 1))
-            warning('over');
-        end
-        %}
 
         % helper variables for readability
         iStart = indices.startIndex(i);
@@ -164,7 +150,7 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
         
         % for debugging puposes show raw data
         if (debugOn ~= 0)
-            figure(1);
+            figure(2);
             ts  = dataIn.timestamp(iStart:iEnd);
             plot (ts, dataRaw(pDetectMode, :, freqIndex), 'Color', 'green');
             le = {};
@@ -228,48 +214,30 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
         
         % only treat one peak per chamber and iteration
         if (multiPeak == 0)
-            
+            skipPeak = 0;
             % find minimum / maximum
             if (findMaxima)
                 [extr, extrIndex] = max(dataForPeakDetection);
                 if (extr < threshold)
-                    continue;   % ignore sub-threshold extrema
+                    skipPeak = 1;   % ignore sub-threshold extrema
                 end
             else
                 [extr, extrIndex] = min(dataForPeakDetection);
                 if (extr > threshold)
-                    continue;   % ignore sub-threshold extrema
+                    skipPeak = 1;   % ignore sub-threshold extrema
                 end
             end
-            extrIndex = extrIndex + iStart;
-
-            %{
-            % TODO: these checks might not be necessary and indices are
-            % anyway wrong
-            if (size(peakData.P2Bl, 1) < i)
-                warning('mismatching size');
+            if (skipPeak == 0)
+                % calculate peak-to-baseline for all frequencies and timestamp
+                % TODO: should we maybe subtract dc fit value if available
+                % instead of baseline?
+                peakData.P2Bl(:,i,:) = dataDc(:,extrIndex,:);
+                peakData.timestampPeak(i) = dataIn.timestamp(extrIndex + iStart);
+                % if debug is on, overlay peak positions on debug plot
+                if (debugOn ~= 0)
+                    plot(peakData.timestampPeak(i), dataDc(pDetectMode, extrIndex, freqIndex), 'x', 'MarkerSize', 20, 'LineWidth', 4);
+                end
             end
-            if (size(peakData.baseline, 1) < i)
-                warning('mismatching size');
-            end
-            if (size(dataIn.mag, 1) < extrIndex)
-                warning('mismatching size');
-            end
-            A=peakData.baseline(i,:,1);
-            if(size(dataIn.mag,1) < extrIndex)
-                warning('overflow');
-            end
-            B=dataIn.mag(extrIndex,:);
-            if(~(isequal(size(A), size(B)) || (isvector(A) && isvector(B) && numel(A) == numel(B))))
-                warning('mismatching size');
-            end
-            %}
-
-            % calculate peak-to-baseline for all frequencies and timestamp
-            % TODO: should we maybe subtract dc fit value if available
-            % instead of baseline?
-            peakData.P2Bl(:,i,:) = dataDc(:,i,:) - peakData.baseline(:,i,:);
-            peakData.timestampPeak(i) = dataIn.timestamp(extrIndex);
 
         else % multiple peaks per chamber
 
@@ -309,7 +277,6 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
                 end
                 peakPos = peakPos + startPeaks(p);
                 peakData.timestampPeak{i}(p) = dataIn.timestamp(peakPos) + dataIn.timestamp(iStart) - dataIn.timestamp(1);
-                %dataIn.timestamp(iStart:iEnd)
                 
                 % find peak-to-baseline values for each frequency, each
                 % type (mag, phase, x, y) at each peak
@@ -328,7 +295,7 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
                 end
             end
     
-            % this section is useful for cardiac recordings with periodic beats
+            % this section is useful for, e.g. cardiac recordings with periodic beats
             if (numPeaks > 3)
                 peakData.meanInterval(i) = mean(diff(peakData.timestampPeak{i}));
                 peakData.stdInterval(i) = std(diff(peakData.timestampPeak{i}));
@@ -342,6 +309,7 @@ function [peakData] = getPeaks(dataIn, indices, magPhaseString, ...
         % pause for display of debug plots if we are in debug mode
         if (debugOn ~= 0)
             hold off;
+            display(['Debug mode is on.' sprintf('\n') 'Press any key to continue to next chamber.' sprintf('\n') 'Abort with Ctrl+c' sprintf('\n') 'Disable debug mode by setting the corresponding mode in the handler:' sprintf('\n') 'ah=initAmeis(folder,threshold);' sprintf('\n') 'ah.debugOn=0;' sprintf('\n')]);
             pause;
         end
     end

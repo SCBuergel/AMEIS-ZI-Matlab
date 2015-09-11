@@ -1,40 +1,52 @@
-uIs = unique(peakDataExt.chamberIndex);
+% example how to plot normalized delta I and baseline of every second
+% chamber
+
+% find all indices
+uIs = unique(peakData.chamberIndex);
 le = {};
+
+% make colors for plotting chambers
 cols = jet(numel(uIs));
-for (i = 2:2:numel(uIs))
+freq = 3;
+
+% iterate every second chamber
+for (i = 1:2:numel(uIs))
     uI = uIs(i);
+    
+    % skip chamber index zero as this is only the tiny set of data between
+    % two chambers
     if (uI == 0)
         continue;
     end
-    le{end+1}=['chamber ', num2str(uI)];
-    is = find(peakDataExt.chamberIndex == uI);
+    le{end+1}=['Chamber ', num2str(uI)];
+    is = find(peakData.chamberIndex == uI);
 
     figure(1);
     subplot(1, 2, 1);
-    plot(peakDataExt.timestamp(is)./3600, smooth(peakDataExt.P2Bl(is, 5, 1)./peakDataExt.blRight(is, 5, 1),50), '.', 'Color', cols(i,:));
+    plot(peakData.startTimestampChamberS(is)./3600, smooth(peakData.P2Bl(1, is, freq)./peakData.baseline(1, is, freq),50), '.', 'Color', cols(i,:));
     hold on;
     
     subplot(1, 2, 2);
-    plot(peakDataExt.timestamp(is)./3600, smooth(peakDataExt.blRight(is, 5, 1),10), '.', 'Color', cols(i,:));
+    plot(peakData.startTimestampChamberS(is)./3600, smooth(peakData.baseline(1, is, freq),10), '.', 'Color', cols(i,:));
     hold on;
     
     figure(2);
-    plot(peakDataExt.timestamp(is)./3600, smooth(peakDataExt.blRight(is, 5, 1) ./ peakDataExt.blRight(is(1), 5, 1),10), '.', 'Color', cols(i,:));
+    plot(peakData.startTimestampChamberS(is)./3600, smooth(peakData.baseline(1, is, freq) ./ peakData.baseline(1, is(1), freq),10), '.', 'Color', cols(i,:));
     hold on;
 end
 figure(1);
 subplot(1, 2, 1);
 hold off;
 xlabel('Time [h]');
-ylabel('\Delta{}I_{norm} [mV]');
+ylabel('\Delta{}I_{norm}');
 legend(le, 'Location', 'SouthWest');
 
 subplot(1, 2, 2);
 hold off;
 xlabel('Time [h]');
-ylabel('Bl [mV]');
+ylabel('Baseline [mV]');
 
 figure(2);
 hold off;
 xlabel('Time [h]');
-ylabel('Bl_{norm. initial value} [mV]');
+ylabel('Baseline_{norm. initial value}');

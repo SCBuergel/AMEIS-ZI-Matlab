@@ -1,93 +1,104 @@
-function peakData = processFolders(dataFolders, folderTimeOffsetsS)
-% PROCESSFOLDERS is extracting peaks of all files in the given folders in a
-% chunk-wise fashion and returns the processed summarized peak data
+function peakData = processFolders(ah)
+% PEAKDATA processes ameis data from folder(s)
+%   function parameter is a handler object initialized with initAmeis()
+%   returns results of data processing
+%
+%   sebastian.buergel@bsse.etz.ch, 2015
 
-    samplesPerChunk = 1e6;    % increasing loads more samples in one iteration
-    threshold = -2e-5;        % peaks below threshold are ignored
-    peakDetectionFreqIndex = 1; % frequency index to be used for peak extraction
-    freqs = 5;                % frequencies to be imported from ziBin files
-    skipInitialSamples = 500; % this many samples are skipped after activating a new chamber (might be noisy due to digital tilt signal, bubbles, ...
-    
-    narginchk(1,2);
+narginchk(1,1);
 
-    if (~iscell(dataFolders))
-        % if we pass just one folder, wrap it into a cell array to make it
-        % compatible with multi-folder processing
-        dataFolders = {dataFolders};
-    end
-    
-    if (nargin == 1 & size(dataFolders,2) < 2)
-        % no folderTimeOffsetS provided and less than two folders
-        folderTimeOffsetsS = 0;
-    end
-    
-    if (nargin == 1 & size(dataFolders,2) > 1)
-        % no folderTimeOffsetS provided but more than one folder
-        error('When processing more than one folder, folderTimeOffsetsS has to be provided. This vector contains the time offsets of the beginning of the file in seconds.');
-    end
+if (~iscell(ah.dataFolders))
+    % if we get just one folder, wrap it into a cell array to make it
+    % compatible with multi-folder processing
+    dataFolders = {ah.dataFolders};
+else
+    dataFolders = ah.dataFolders;
+end
 
-    
-    peakData = [];
-    allIndices = [];
-    folder = 1;
-    for folder  = 1:size(dataFolders, 2)
-        chunkIndex = 0;             % change to skip some iterations in the beginning of the file
-        dataRaw = 1;  % should not be empty to get into while loop
-        newIndices = [];
-        while(~isempty(dataRaw))
-            
-            % TODO: ideally, loadData should know where the last sample in
-            % the previous chunk (incomplete there) started and seek there
-            % 1. load data
-            dataRaw=loadData(dataFolders{folder}, ...
-                samplesPerChunk, samplesPerChunk * chunkIndex, freqs);
+allIndices = [];
+peakData = [];
+% process folder by folder
+for folder  = 1:size(dataFolders, 2)
+    chunkIndex = ah.startChunkIndex;	% change to skip some iterations in the beginning of the file
+    dataRaw = 1;    % should not be empty to get into while loop
+    newIndices = [];
+    % process chunk by chunk
+    while(~isempty(dataRaw))
 
-            % if we did not get any data, then probably we are done processing
-            if (isempty(dataRaw))
-                continue;
+        % TODO: ideally, loadData should know where the last sample in
+        % the previous chunk (incomplete there) started and seek there
+        % load data
+        dataRaw=loadData(dataFolders{folder}, ...
+            ah.samplesPerChunk, ah.samplesPerChunk * chunkIndex, ah.freqs);
+
+        % if we did not get any data, then probably we are done processing
+        if (isempty(dataRaw))
+            continue;
+        end
+
+        ['first timestamp = ', num2str(dataRaw.timestamp(1)/3600), ' h']
+
+        % find indices
+        [allIndices, newIndices] = getIndices(dataRaw, ah.skipInitialSamples, allIndices);
+        if (size(newIndices.startIndex,1) == 0)
+            continue;
+        end
+
+        % extract peak and baseline data and append to existing results of
+        % previous chunks
+        if (isempty(peakData))
+            peakData = getPeaks(dataRaw, allIndices, 'mag', ah.peakDetectionFreqIndex, ah.threshold, ...
+                ah.AcSmoothLengthS, ah.DcSmoothLengthS, ah.multiPeak, ah.minPeakDistS, ah.debugOn);
+            peakData.f = dataRaw.f;
+            peakData.startTimestampChamberS = peakData.startTimestampChamberS + ah.folderTimeOffsetsS(folder);
+            peakData.timestampPeak = peakData.timestampPeak + ah.folderTimeOffsetsS(folder);
+        else
+            tmpData = getPeaks(dataRaw, newIndices, 'mag', ah.peakDetectionFreqIndex, ah.threshold, ...
+                ah.AcSmoothLengthS, ah.DcSmoothLengthS, ah.multiPeak, ah.minPeakDistS, ah.debugOn);
+
+            % append peak results to results of previous chunks
+            peakData.chamberIndex = [peakData.chamberIndex; tmpData.chamberIndex];
+            peakData.iterationOfChamber = [peakData.iterationOfChamber; tmpData.iterationOfChamber];
+            peakData.startTimestampChamberS = [peakData.startTimestampChamberS; tmpData.startTimestampChamberS + ah.folderTimeOffsetsS(folder)];
+            peakData.durationChamberS = [peakData.durationChamberS; tmpData.durationChamberS];
+            peakData.timestampPeak = [peakData.timestampPeak; tmpData.timestampPeak + ah.folderTimeOffsetsS(folder)];
+            peakData.baseline = [peakData.baseline, tmpData.baseline];  % right dimension for cat?
+            peakData.P2Bl = [peakData.P2Bl, tmpData.P2Bl];
+            if (tmpData.multiPeak ~= 0) % append multi-peak results
+                peakData.peakCount = [peakData.peakCount; tmpData.peakCount];
+                peakData.meanInterval = [peakData.meanInterval; tmpData.meanInterval];
+                peakData.stdInterval = [peakData.stdInterval; tmpData.stdInterval];
             end
+        end
 
-            % 2. find indices
-            [allIndices, newIndices] = getIndices(dataRaw, skipInitialSamples, allIndices);
-
-%             % 3 (optional). plot some selected time domain data
-%             plotDataTimeDomain(dataRaw, 5, 0, inf, 1, 10, 'mag');
-
-            % 4. extract peak and baseline data
-            if (isempty(peakData))
-                peakData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold);
-                peakData.timestamp = peakData.timestamp + folderTimeOffsetsS(folder);
-                peakData.f = dataRaw.f;
-            else
-                tmpData = getPeaks(dataRaw, newIndices, 'mag', peakDetectionFreqIndex, threshold);
-                peakData.blLeft = [peakData.blLeft; tmpData.blLeft];
-                peakData.blRight = [peakData.blRight; tmpData.blRight];
-                peakData.P2Bl = [peakData.P2Bl; tmpData.P2Bl];
-                peakData.chamberIndex = [peakData.chamberIndex; tmpData.chamberIndex];
-                peakData.iterationOfChamber = [peakData.iterationOfChamber; tmpData.iterationOfChamber];
-                peakData.timestamp = [peakData.timestamp; tmpData.timestamp + folderTimeOffsetsS(folder)];
-            end
-% 
+        figure(1);
+        if (ah.multiPeak ~= 0)
+            % plot some intermediate multi-peak number
+            plot(peakData.chamberIndex, peakData.peakCount, 'o');
+        else
             % plot some intermediate p2bl data
-            figure(1);
+            chamber = 2;
             subplot(1, 3, 1);
-            index=find(peakData.chamberIndex==2);
-            plot(peakData.timestamp(index)./3600, peakData.P2Bl(index, peakDetectionFreqIndex, 1), 'o');
+            index=find(peakData.chamberIndex==chamber);
+            plot(peakData.startTimestampChamberS(index)./3600, peakData.P2Bl(1, index, ah.peakDetectionFreqIndex), 'o');
             xlabel('Time [h]');
-            ylabel('\Delta{}V (chamber 2) [V]');
-            
+            ylabel(['\Delta{}V (chamber ', num2str(chamber), ') [V]']);
+
             subplot(1, 3, 2);
-            plot(peakData.timestamp(index)./3600, peakData.blRight(index, peakDetectionFreqIndex, 1), 'o');
+            plot(peakData.startTimestampChamberS(index)./3600, peakData.baseline(1, index, ah.peakDetectionFreqIndex), 'o');
             xlabel('Time [h]');
-            ylabel('V_{baseline} (chamber 2) [V]');
-            
+            ylabel(['V_{baseline} (chamber ', num2str(chamber), ') [V]']);
+
             subplot(1, 3, 3);
-            index=find(peakData.chamberIndex==2);
-            plot(peakData.timestamp(index)./3600, peakData.P2Bl(index, peakDetectionFreqIndex, 1) ./ peakData.blRight(index, peakDetectionFreqIndex, 1), 'o');
+            plot(peakData.startTimestampChamberS(index)./3600, peakData.P2Bl(1, index, ah.peakDetectionFreqIndex) ./ peakData.baseline(1, index, ah.peakDetectionFreqIndex), 'o');
             xlabel('Time [h]');
-            ylabel('\Delta{}V_{norm} (chamber 2) [V]');
-            
-            chunkIndex = chunkIndex + 1
+            ylabel(['\Delta{}V_{norm} (chamber ', num2str(chamber), ') [V]']);
+        end
+        
+        chunkIndex = chunkIndex + 1
+        if (chunkIndex > ah.maxChunks)
+            break;  % Matlab exception if running for longer, so we quit here...
         end
     end
+end
 end
