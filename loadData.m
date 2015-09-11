@@ -1,4 +1,5 @@
-function [rawContainer] = loadData(folder, numSamples, startSample, freqIndices)
+function [rawContainer] = loadData(folder, numSamples, startSample,...
+    freqIndices)
 %LOADDATA reads ziBin files into raw container format
 % 
 %   D = LOADDATA(F) loads data from folder F into the custom data structure
