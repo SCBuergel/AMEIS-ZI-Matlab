@@ -8,8 +8,7 @@ dataDirs = {'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\2015-04-02-18-40-39\', 
 folderTimeOffsetsS = [0 44*3600];
 peakData = processFolders(dataDirs, folderTimeOffsetsS);
 
-%%
-% raw current - Figure 3a, b
+%% Figure 3a, b: raw current
 % rawData=loadData(dataDirs{1}, 1e6);
 indices = getIndices(rawData, 100);
 
@@ -53,8 +52,20 @@ title('Figure 3b');
 ylim([-2 52]);
 xlim([0  ts(end)]);
 
-%%
-% baseline and delta current spectra - figure 5
+%% Figure 4: spheroid adherance vs. tilt interval
+% making figure showing the dependence of the number of moving tissues in a
+% chip on the tilt time interval
+figure(1);
+movingTissues = [15,14,15,15,15,14,8,6,6,5,3]./15 * 100
+tiltIntervalMin = [0.3,2.6,6.2,10.4,15,21,29,42,62,99,171];
+semilogx(tiltIntervalMin, movingTissues, 'o-');
+ylim([-5 105]);
+xlim([0.2 250]);
+xlabel('Tilt interval [min]');
+ylabel('Moving spheroids [%]');
+
+
+%% Figure 5: baseline and delta current spectra
 % 51.92-42.81
 % 3.426 -4.468
 c=2;
@@ -95,10 +106,7 @@ xlim([8.1e3 2.5e6]);
 legend(el);
 
 
-
-
-%%
-% long-term - Figure 6
+%% Figure 6: long-term
 peakData = peakDataExt;
 f=5;
 el={};
@@ -187,9 +195,7 @@ ylabel('\Delta_{norm}I');
 
 
 
-%%
-% (not for paper)
-% load some short sequences at some time points to compare imp P2BL
+%% (not for paper) load some short sequences at some time points to compare imp P2BL
 chunkIndex = 0;
 samplesPerChunk = 1e5;
 freqs = 5;
@@ -237,9 +243,7 @@ end
 
 
 
-%%
-% (not for paper)
-% plot different signals (impedance, voltage, different normalizations)
+%% (not for paper) plot different signals (impedance, voltage, different normalizations)
 peakData = peakDataExt;
 f=3;
 el={};
