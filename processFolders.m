@@ -30,6 +30,7 @@ for folder  = 1:size(dataFolders, 2)
         % load data
         dataRaw=loadData(dataFolders{folder}, ...
             ah.samplesPerChunk, ah.samplesPerChunk * chunkIndex, ah.freqs);
+        chunkIndex = chunkIndex + 1
 
         % if we did not get any data, then probably we are done processing
         if (isempty(dataRaw))
@@ -95,7 +96,6 @@ for folder  = 1:size(dataFolders, 2)
             ylabel(['\Delta{}V_{norm} (chamber ', num2str(chamber), ') [V]']);
         end
         
-        chunkIndex = chunkIndex + 1
         if (chunkIndex > ah.maxChunks)
             break;  % Matlab exception if running for longer, so we quit here...
         end
