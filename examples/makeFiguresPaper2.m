@@ -5,6 +5,381 @@
 %       ah.freqs = 2:8
 
 addpath('..\'); % parent path contains all vital functions
+%% selected time domain peaks of cancer spheroids
+
+%% cancer - selected chambers:
+% long-term N\DeltaI vs time for different 5FU concentrations
+% optical size
+% atp values
+
+chambers = [2, 3, 7, 12, 14];
+ctrlIs = [1, 2, 8];
+c1Is = [3, 4, 5];
+c2Is = [6, 7, 10];
+c3Is = [11, 12, 13];
+dmsoIs = [9, 14, 15];
+
+% cancer - ATP assay
+
+% averaged ATP luminosity of reference values
+refLumVals = [6458016, 786421, 377791, 77449];
+
+% reference ATP concentrations
+refConcVals = [1, 0.1, 0.05, 0.001];
+
+% ATP luminosity values of spheroids
+spheroidVals = [4183171, 6206299, 4870101, 5347990, 4725827, 3279807, 3984614, 7190324, 6810642, 3587530, 1543350, 2278822, 525714, 4807521, 5844767];
+
+% linear interpolation of reference values
+[p, S] = polyfit(refConcVals, refLumVals, 1);
+
+% estimation of ATP concentration of spheroids
+spheroidConcs = (spheroidVals - p(2)) ./ p(1);
+
+% % plot reference measurements, interpolation and spheroid concentrations
+% mi = min(refConcVals);
+% ma = max(spheroidConcs);
+% x = mi:(ma-mi)/100:ma;
+% y = x * p(1) + p(2);
+% figure(5);
+% loglog(refConcVals, refLumVals, 'o');
+% hold on;
+% loglog(x, y, 'b:');
+% loglog(spheroidConcs, spheroidVals, 'rx', 'LineWidth', 2, 'MarkerSize', 20);
+% axis square;
+% hold off;
+
+le = {};
+figure(6);
+count = 0;
+for c = chambers
+    count = count + 1;
+    markerSize = 10;
+    if (~isempty(find(ctrlIs == c)))
+        % current chamber id is a control
+        col = [228,26,28]/255; % colors from http://colorbrewer2.org/, 5 data classes, qualitatice, printer friendly, selected 3rd option (most pretty)
+        le{end + 1} = 'Control';
+        marker = 'x';
+    elseif (~isempty(find(c1Is == c)))
+        % current chamber id is a concentration 1
+        col = [55,126,184]/255;
+        le{end + 1} = '0.4 uM';
+        marker = 'v';
+    elseif (~isempty(find(c2Is == c)))
+        % current chamber id is a concentration 2
+        col = [77,175,74]/255;
+        le{end + 1} = '4 uM';
+        marker = 'o';
+    elseif (~isempty(find(c3Is == c)))
+        % current chamber id is a concentration 3
+        col = [152,78,163]/255;
+        le{end + 1} = '40 uM';
+        marker = '^';
+    elseif (~isempty(find(dmsoIs == c)))
+        % current chamber id is a DMSO
+        col = [255,127,0]/255;
+        le{end + 1} = 'DMSO';
+        marker = '+';
+    else
+        error(['Error: Unknown index ', num2str(c), '!']);
+    end
+
+%     le=cell(3,1);   % for legend entries
+    bar(count, spheroidConcs(c), 'FaceColor', col, ...
+        'EdgeColor', [0 0 0], 'LineWidth', 1, 'barwidth', 0.8)
+    hold on;
+end
+hold off;
+% legend(le);
+xlim([0.5, count + 0.5]);
+set(gca, 'XTick', 1:count);
+set(gca, 'XTickLabel', le);
+% xlabel('Chamber number');
+ylabel('ATP concentration [units unclear]');
+
+% cancer - selected chambers long-term N\DeltaI vs time for different 5FU concentrations
+figure(2);
+le = {};
+for plotType = 1:2
+    pH = [];
+    for c = chambers
+        markerSize = 10;
+        if (~isempty(find(ctrlIs == c)))
+            % current chamber id is a control
+            col = [228,26,28]/255; % colors from http://colorbrewer2.org/, 5 data classes, qualitatice, printer friendly, selected 3rd option (most pretty)
+            le{end + 1} = ['Control, chamber ', num2str(c)];
+            marker = 'x';
+        elseif (~isempty(find(c1Is == c)))
+            % current chamber id is a concentration 1
+            col = [55,126,184]/255;
+            le{end + 1} = ['0.4 uM, chamber ', num2str(c)];
+            marker = 'v';
+        elseif (~isempty(find(c2Is == c)))
+            % current chamber id is a concentration 2
+            col = [77,175,74]/255;
+            le{end + 1} = ['4 uM, chamber ', num2str(c)];
+            marker = 'o';
+        elseif (~isempty(find(c3Is == c)))
+            % current chamber id is a concentration 3
+            col = [152,78,163]/255;
+            le{end + 1} = ['40 uM, chamber ', num2str(c)];
+            marker = '^';
+        elseif (~isempty(find(dmsoIs == c)))
+            % current chamber id is a DMSO
+            col = [255,127,0]/255;
+            le{end + 1} = ['DMSO, chamber ', num2str(c)];
+            marker = '+';
+        else
+            error(['Error: Unknown index ', num2str(c), '!']);
+        end
+        i = find(peakData.chamberIndex == c);
+        ts = peakData.startTimestampChamberS(i);
+        y = peakData.P2Bl(1, i, 5) ./ peakData.baseline(1, i, 5);
+        red = 1;
+        ts = ts(1:red:end) ./ 3600;
+        y = y(1:red:end);
+        y = y ./ y(1); % comment this line for \Delta{}I_{norm}, uncomment for \Delta{}I_{norm,0}
+        if (plotType == 1)
+            plot(ts, y, '.', 'Color', col * 0.7);
+        else
+            pH(end + 1) = plot(ts, smooth(y,100), '-', 'Color', col, 'LineWidth', 4);
+        end
+        hold on;
+    end
+end
+xlim([0, 92]);
+ylim([0.7, 2]); % for \Delta{}I_{norm,0}
+% ylim([-0.16, -0.05]); % for \Delta{}I_{norm}
+xlabel('Time [h]');
+ylabel('\Delta I_{norm,0}');
+% ylabel('\Delta I_{norm}');
+legend(pH, le, 'Location', 'NorthWest');
+hold off;
+
+% cancer - selected chamber sizes optical
+figure(3);
+count = 0;
+for c = chambers
+    count = count + 1;
+    markerSize = 10;
+    if (~isempty(find(ctrlIs == c)))
+        % current chamber id is a control
+        col = [228,26,28]/255; % colors from http://colorbrewer2.org/, 5 data classes, qualitatice, printer friendly, selected 3rd option (most pretty)
+    elseif (~isempty(find(c1Is == c)))
+        % current chamber id is a concentration 1
+        col = [55,126,184]/255;
+    elseif (~isempty(find(c2Is == c)))
+        % current chamber id is a concentration 2
+        col = [77,175,74]/255;
+    elseif (~isempty(find(c3Is == c)))
+        % current chamber id is a concentration 3
+        col = [152,78,163]/255;
+    elseif (~isempty(find(dmsoIs == c)))
+        % current chamber id is a DMSO
+        col = [255,127,0]/255;
+    else
+        error(['Error: Unknown index ', num2str(c), '!']);
+    end
+    
+    le=cell(3,1);   % for legend entries
+    bar(count - 0.25, sizeChamber(1,c), 'FaceColor', col/2, ...
+        'EdgeColor', [0 0 0], 'LineWidth', 1, 'barwidth', 0.25)
+    le{1} = 'Day 0';
+    hold on;
+    bar(count, sizeChamber(2,c), 'FaceColor', col/1.5, ...
+        'EdgeColor', [0 0 0], 'LineWidth', 1, 'barwidth', 0.25)
+    le{2} = 'Day 2';
+    le{3} = 'Day 4';
+    bar(count + 0.25, sizeChamber(3,c), 'FaceColor', col, ...
+        'EdgeColor', [0 0 0], 'LineWidth', 1, 'barwidth', 0.25)
+end
+hold off;
+legend(le);
+xlim([0.5, size(chambers,2) + 0.5]);
+set(gca, 'XTick', 1:size(chambers,2));
+set(gca, 'XTickLabel', {'Control', '0.4 uM', '4 uM', '40 uM', 'DMSO'});
+% xlabel('Chamber number');
+ylabel('Spheroid cross section [\mu{}m ^2]');
+% set(gca,'XGrid','on')
+% set(gca,'YGrid','off')
+% xlim([0, count + 1]);
+
+%% cancer - overview over all chambers: long-term N\DeltaI vs time for different 5FU concentrations
+figure(1);
+for c = 1:15
+    markerSize = 10;
+    switch(c)
+        case 1
+            col = [1 0 0];
+            le = {'Control a - 1'};
+            marker = 'x';
+            markerSize = 15;
+        case 2
+            col = [0 0.8 0];
+            le{c} = 'Control b - 2';
+            marker = 'x';
+            markerSize = 15;
+        case 3
+            col = [1 0 0];
+            le{c} = '0.4 uM a - 3';
+            marker = 'v';
+        case 4
+            col = [0 0.8 0];
+            le{c} = '0.4 uM b - 4';
+            marker = 'v';
+        case 5
+            col = [0 0 1];
+            le{c} = '0.4 uM c - 5';
+            marker = 'v';
+        case 6
+            col = [1 0 0];
+            le{c} = '4 uM a - 6';
+            marker = 'o';
+        case 7
+            col = [0 0.8 0];
+            le{c} = '4 uM b - 7';
+            marker = 'o';
+        case 8
+            col = [0 0 1];
+            le{c} = 'Control c - 8';
+            marker = 'x';
+            markerSize = 15;
+        case 9
+            col = [1 0 0];
+            le{c} = 'DMSO a - 9';
+            marker = '+';
+            markerSize = 15;
+        case 10
+            col = [0 0 1];
+            le{c} = '4 uM c - 10';
+            marker = 'o';
+        case 11
+            col = [1 0 0];
+            le{c} = '40 uM a - 11';
+            marker = '^';
+        case 12
+            col = [0 0.8 0];
+            le{c} = '40 uM b - 12';
+            marker = '^';
+        case 13
+            col = [0 0 1];
+            le{c} = '40 uM c - 13';
+            marker = '^';
+        case 14
+            col = [0 0.8 0];
+            le{c} = 'DMSO b - 14';
+            marker = '+';
+            markerSize = 15;
+        case 15
+            col = [0 0 1];
+            le{c} = 'DMSO c - 15';
+            marker = '+';
+            markerSize = 15;
+    end
+    i = find(peakData.chamberIndex == c);
+    ts = peakData.startTimestampChamberS(i);
+    y = peakData.P2Bl(1, i, 5) ./ peakData.baseline(1, i, 5);
+    red = 100;
+    ts = ts(1:red:end) ./ 3600;
+    y = y(1:red:end);
+%     y = y ./ y(5);
+    plot(ts, y, marker, 'Color', col, 'MarkerSize', markerSize, ...
+        'MarkerFaceColor', col, 'LineWidth', 3);
+    title (['Chamber ', num2str(c)]);
+%     ylim([-0.3, 0]);
+    hold on;
+end
+legend(le, 'Location', 'NorthWest');
+hold off;
+
+%% cancer - rename files to random name for blind size extraction via Fiji
+folder = 'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\pixRnd\'
+filePattern = '*.bmp';
+files = dir([folder filePattern]);
+names = {files(1:end).name};
+nameTable = cell(2,size(names,2));
+
+alphabet = 'abcdefghijklmnopqrstuvwxyz';
+numRands = length(alphabet); 
+sLength = 10;%specify length of random string to generate
+
+for c=1:size(names,2)
+    %generate random string
+    randName = [alphabet(ceil(rand(1,sLength)*numRands)), '.bmp'];
+    nameTable{1,c} = names{c};
+    nameTable{2,c} = randName;
+    movefile([folder names{c}], [folder randName]);
+end
+save('nameTable.mat', 'nameTable');
+%% add padding 0's to nameTable in case original filenames have different lengths (e.g. 1a.bmp vs 10a.bmp)
+
+% find longest filename (e.g. '14a.bmp')
+maxLen = max(cell2mat(strfind({nameTable{1,:}}, '.')));
+for c = 1:size(nameTable,2)
+    % get length of current filename
+    curLen = strfind(nameTable{1,c}, '.');
+    padStr = '';
+    
+    % pad difference to maximal length with zeros
+    for z = curLen:maxLen
+        padStr(end + 1) = '0';
+    end
+    nameTable{1,c} = [padStr, nameTable{1,c}];
+end
+
+%% plot sizes of spheroids vs chambers (for that we combine sizes measured by Fiji with nameTable)
+% in order for this to work, you need to first run the random file rename
+% section above, then manually measure spheroid sizes in Fiji and save to
+% file, then add paddings 0's section above
+
+% this file contains the sizes measured with Fiji.
+% the format is a \t separated file with one header line.
+% the first column is the measurement number (e.g. 1 to 45).
+% the second column is the measured surface area.
+fijiResultFile = 'C:\Users\sbuergel\Dropbox\MT-EIS-paper\data\pixRnd\zzz-FijiSizeMeasurements.txt';
+
+fijiResults=dlmread(fijiResultFile, '\t', 1, 0);
+
+% scale in micron/pixel (measure e.g. in Fiji by measuring width in pixel
+% between electrodes (500um)
+scale = 500/485;
+
+% sort random names and get indix to random names in table
+[name,indexRand] = sort(lower({nameTable{2,:}}));
+
+% make cell array with entries for: original filename, random filename, fijiResult
+nt = cell(3,size(fijiResults,1));
+nt(1:2,:) = nameTable(:,indexRand);
+nt(3,:) = num2cell(fijiResults(:,2));
+
+% sort original names and get indix to original names in table
+[name,indexOrig] = sort(lower({nt{1,:}}));
+
+sizes = [nt{3,indexOrig}] .* scale^2;
+sizeChamber(1,:) = sizes(1:3:end);
+sizeChamber(2,:) = sizes(2:3:end);
+sizeChamber(3,:) = sizes(3:3:end);
+save('sizeChamber.mat', 'sizeChamber');
+
+le=cell(3,1);   % for legend entries
+plot(sizes(3:3:end), '^', 'LineWidth', 4, 'Color', [0 0 1]);
+le{1} = 'Day 4';
+hold on;
+plot(sizes(2:3:end), 'o', 'LineWidth', 4, 'Color', [0 0.8 0]);
+le{2} = 'Day 2';
+plot(sizes(1:3:end), 'v', 'LineWidth', 4, 'Color', [1 0 0]);
+le{3} = 'Day 0';
+hold off;
+legend(le);
+set(gca, 'XTick', [1:size(sizes,2)/3]);
+% set(ax, 'XTickLabel', [1:size(name,2)/3]);
+xlabel('Chamber number');
+ylabel('Spheroid cross section [\mu{}m ^2]');
+set(gca,'XGrid','on')
+set(gca,'YGrid','off')
+
+
+%% is this the cardio data analysis???
 ah=initAmeis('C:\Users\sbuergel\Dropbox\AMEIS-bio-paper\data\', 1e-5);
 ah.maxChunks = 1;
 ah.startChunkIndex = 60;
@@ -27,13 +402,13 @@ dataRaw=loadData(ah.dataFolders, ...
     ah.samplesPerChunk, ah.samplesPerChunk * chunkIndex, ah.freqs);
 indices = getIndices(dataRaw, ah.skipInitialSamples);
 i = find(indices.chamberIndex == chamber);
-s = indices.startIndex(i)-1400;
+alphabet = indices.startIndex(i)-1400;
 e = indices.endIndex(i);
-ts1 = dataRaw.timestamp(s(1):e(1));
+ts1 = dataRaw.timestamp(alphabet(1):e(1));
 le={}
 le{1}= ['t = ' num2str(ts1(1)./3600), 'h'];
 ts1 = ts1 - ts1(1);
-plot(ts1, dataRaw.mag(s(1):e(1), freq)/1e3, 'Color', [0 0.6 0], 'LineWidth', 2);
+plot(ts1, dataRaw.mag(alphabet(1):e(1), freq)/1e3, 'Color', [0 0.6 0], 'LineWidth', 2);
 % hold on;
 % ts2 = dataRaw.timestamp(s(2):e(2));
 % ts2(1)
@@ -122,7 +497,7 @@ xlim([-0.5 19.5]);
 median(peakData2.stdInterval(i2))
 median(peakData2.stdInterval(i7))
 
-%% cardio - plot time domain data with high standard deviation to find out what is going on - e.g. here long recording of chamber due to (manual?) interruption of experiment
+%% cardio - time domain data with high standard deviation to find out what is going on - e.g. here long recording of chamber due to (manual?) interruption of experiment
 figure(13);
 freq = 3;
 chunkIndex = 59;
@@ -130,11 +505,11 @@ dataRaw=loadData(ah.dataFolders, ...
     ah.samplesPerChunk, ah.samplesPerChunk * chunkIndex, ah.freqs);
 indices = getIndices(dataRaw, ah.skipInitialSamples);
 i = find(indices.chamberIndex == 2);
-s = indices.startIndex(i(1));
+alphabet = indices.startIndex(i(1));
 e = indices.endIndex(i(1));
-ts = dataRaw.timestamp(s:e);
+ts = dataRaw.timestamp(alphabet:e);
 ts = ts - ts(1);
-plot(ts, dataRaw.mag(s:e, freq)./1e3);
+plot(ts, dataRaw.mag(alphabet:e, freq)./1e3);
 xlabel('Time [s]');
 ylabel(['Raw current (' num2str(dataRaw.f(freq)/1e3) ' kHz) [\mu{}A]']);
 title(['Chamber ', num2str(chamber)]);
