@@ -67,15 +67,19 @@ function [allIndices, newIndices] = getIndices(dataRaw, ...
 
     % get chamber indices from recorded HF2 DIO bit sequence
     
-    % this version was used for the 2015 uTAS data and cardiac data (2015-03-22 ???)
-    chamberIndices = bitshift(dataRaw.bits, 20, 'uint32') / uint32(2^28); % translates raw DIO bits to 0 or chamber index (1-15), this operation depends on version of AMEIS Arduino firmware!
+%     % this version was used for the 2015 uTAS data and cardiac data (2015-03-22 ???)
+%     chamberIndices = bitshift(dataRaw.bits, 20, 'uint32') / uint32(2^28); % translates raw DIO bits to 0 or chamber index (1-15), this operation depends on version of AMEIS Arduino firmware!
+
+    % this version was used for the control experiments with beads on
+    % 2016-02-19
+    chamberIndices = bitshift(dataRaw.bits, 7, 'uint32')/ uint32(2^28);
 
 %     % this version was used for the dataset 2015-06-05-19-41-00 (human
 %     % islets)
 %     chamberIndices = bitshift(dataRaw.bits, 8, 'uint32') / uint32(2^28); % translates raw DIO bits to 0 or chamber index (1-15), this operation depends on version of AMEIS Arduino firmware!
 
-    % find times at which chamber index changes (switching)
-    switchIndices = find(diff(double(chamberIndices)) ~= 0);
+%     % find times at which chamber index changes (switching)
+%     switchIndices = find(diff(double(chamberIndices)) ~= 0);
 
     % TODO: first and last chamber are cropped, the start of the last
     % chamber should be returned, the absolut position in the file
@@ -85,7 +89,14 @@ function [allIndices, newIndices] = getIndices(dataRaw, ...
     % (would lead to an endless loop)
     
     % find start and end times of chamber
-    s = switchIndices(1:end-1) + skipSamplesStart;
+%     s = switchIndices(1:end-1) + skipSamplesStart;
+%     e = switchIndices(2:end);
+
+    % this version is only used for analysis of the bead control experiments on
+    % 2016-02-19
+    % find times at which chamber index changes (switching)
+    switchIndices = find(diff(double(chamberIndices)) > 0);
+    s = switchIndices(1:end - 1) + skipSamplesStart;
     e = switchIndices(2:end);
 
     % ignore all indices which are entirely cropped off (due to
@@ -93,8 +104,11 @@ function [allIndices, newIndices] = getIndices(dataRaw, ...
     newIndices.startIndex = s(e - s  > 0);
     newIndices.endIndex = e(e - s  > 0);
     
-    % get chamber index
-    newIndices.chamberIndex = chamberIndices(newIndices.endIndex);
+%     % get chamber index
+%     newIndices.chamberIndex = chamberIndices(newIndices.endIndex);
+    % this version is only used for analysis of the bead control experiments on
+    % 2016-02-19
+    newIndices.chamberIndex = chamberIndices(newIndices.startIndex);
     
     % store results in return value
     if (isempty(prevIndices))
